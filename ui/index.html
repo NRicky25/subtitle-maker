@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Subtitle Maker</title>
+<style>
+  :root {
+    --bg: #f5f6f9;
+    --surface: #ffffff;
+    --surface-2: #eff1f6;
+    --border: rgba(20, 24, 40, .08);
+    --border-strong: rgba(20, 24, 40, .14);
+    --text: #141821;
+    --muted: #677085;
+    --faint: #98a0b3;
+    --accent-1: #06b6d4;
+    --accent-2: #8b5cf6;
+    --accent: #0891b2;
+    --accent-soft: rgba(6, 182, 212, .12);
+    --ok: #059669;
+    --err: #dc2626;
+    --track: rgba(20, 24, 40, .08);
+    --shadow: 0 1px 2px rgba(20, 24, 40, .04), 0 8px 24px rgba(20, 24, 40, .06);
+    --radius: 16px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d0f15;
+      --surface: #151820;
+      --surface-2: #1c202b;
+      --border: rgba(255, 255, 255, .06);
+      --border-strong: rgba(255, 255, 255, .12);
+      --text: #eceef3;
+      --muted: #8b93a7;
+      --faint: #5d6477;
+      --accent: #22d3ee;
+      --accent-soft: rgba(34, 211, 238, .13);
+      --ok: #34d399;
+      --err: #f87171;
+      --track: rgba(255, 255, 255, .07);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 12px 32px rgba(0, 0, 0, .25);
+      color-scheme: dark;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.45 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased; user-select: none; overflow: hidden;
+  }
+  button { font: inherit; color: inherit; }
+  svg { display: block; }
+
+  .app {
+    height: 100%; display: grid; grid-template-rows: auto auto auto 1fr; gap: 16px;
+    padding: 24px 28px 20px; max-width: 1100px; margin: 0 auto;
+  }
+
+  .top { display: flex; align-items: center; gap: 14px; }
+  .logo { width: 44px; height: 44px; filter: drop-shadow(0 6px 14px rgba(40, 140, 220, .35)); }
+  .brand { margin-right: auto; }
+  .brand h1 { margin: 0; font: 650 20px/1.2 "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; letter-spacing: -.01em; }
+  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
+  .engine {
+    display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 12px;
+    border-radius: 999px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-size: 12.5px; font-weight: 550;
+  }
+  .engine i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .engine[data-state="ready"] i { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 20%, transparent); }
+  .engine[data-state="loading"] i { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+
+  /* Drop zone */
+  .drop {
+    display: flex; align-items: center; gap: 18px; padding: 22px 24px;
+    border: 1.5px dashed var(--border-strong); transition: border-color .15s, background .15s;
+  }
+  .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .drop-art {
+    width: 52px; height: 52px; flex: none; border-radius: 14px; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .drop-art svg { width: 24px; height: 24px; }
+  .drop-text { margin-right: auto; }
+  .drop-text strong { display: block; font-size: 15.5px; font-weight: 650; }
+  .drop-text span { color: var(--muted); font-size: 13px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px;
+    border-radius: 10px; border: 1px solid var(--border-strong); background: var(--surface-2);
+    cursor: pointer; font-weight: 550; font-size: 13.5px; white-space: nowrap;
+    transition: transform .1s, border-color .15s, filter .15s;
+  }
+  .btn:hover { border-color: var(--faint); }
+  .btn:active { transform: scale(.97); }
+  .btn svg { width: 16px; height: 16px; flex: none; }
+  .btn.primary {
+    height: 42px; padding: 0 22px; border: 0; color: #fff;
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+    box-shadow: 0 6px 18px rgba(40, 140, 220, .35);
+  }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .icon-btn { width: 32px; height: 32px; padding: 0; justify-content: center; border: 0; background: transparent; color: var(--muted); border-radius: 8px; }
+  .icon-btn:hover { background: var(--surface-2); color: var(--text); }
+
+  /* Options */
+  .options { display: grid; grid-template-columns: 1fr auto; gap: 16px; }
+  .option { padding: 12px 14px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .option-label { color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  .segmented { display: flex; padding: 3px; gap: 2px; border-radius: 10px; background: var(--surface-2); }
+  .segmented button {
+    border: 0; background: transparent; height: 30px; padding: 0 12px; border-radius: 8px; cursor: pointer;
+    color: var(--muted); font-weight: 550; font-size: 13px; transition: background .15s, color .15s;
+  }
+  .segmented button:hover { color: var(--text); }
+  .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
+  .help { color: var(--faint); font-size: 12.5px; }
+
+  /* Jobs */
+  .list { min-height: 0; display: flex; flex-direction: column; }
+  .list-head { display: flex; align-items: baseline; gap: 10px; padding: 4px 4px 10px; }
+  .list-head h2 { margin: 0; font-size: 15px; font-weight: 650; }
+  .list-head .count { color: var(--faint); font-size: 13px; margin-right: auto; }
+  .link { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 4px 6px; border-radius: 6px; }
+  .link:hover { color: var(--text); background: var(--surface-2); }
+
+  .items { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; padding: 2px 4px 4px 2px; }
+  .items::-webkit-scrollbar { width: 10px; }
+  .items::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 10px; border: 3px solid var(--bg); }
+
+  .item { padding: 10px; animation: in .25s ease-out; }
+  @keyframes in { from { opacity: 0; transform: translateY(6px); } }
+  .row { display: grid; grid-template-columns: 136px 1fr auto; gap: 16px; align-items: center; }
+  .thumb {
+    width: 136px; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: var(--surface-2);
+    position: relative; display: grid; place-items: center; color: var(--faint);
+  }
+  .thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .thumb svg { width: 22px; height: 22px; }
+  .duration { position: absolute; right: 6px; bottom: 6px; padding: 1px 6px; border-radius: 5px; background: rgba(0, 0, 0, .72); color: #fff; font-size: 11.5px; font-weight: 600; }
+  .body { min-width: 0; }
+  .title { font-weight: 600; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta { color: var(--muted); font-size: 12.5px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: rtl; text-align: left; }
+  .bar { height: 6px; border-radius: 6px; background: var(--track); margin-top: 10px; overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--accent-1), var(--accent-2)); transition: width .4s ease; }
+  .status { display: flex; gap: 6px; align-items: center; color: var(--muted); font-size: 12.5px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .status svg { width: 14px; height: 14px; flex: none; }
+
+  .item[data-state="loading"] .bar span { width: 35% !important; animation: slide 1.2s ease-in-out infinite; }
+  .item[data-state="queued"] .bar span { width: 0 !important; }
+  @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+  .item[data-state="done"] .bar span { width: 100% !important; background: var(--ok); }
+  .item[data-state="done"] .status { color: var(--ok); }
+  .item[data-state="error"] .bar span { width: 100% !important; background: var(--err); }
+  .item[data-state="error"] .status { color: var(--err); user-select: text; }
+  .item[data-state="cancelled"] { opacity: .6; }
+  .item[data-state="cancelled"] .bar span { width: 0 !important; }
+
+  .actions { display: flex; gap: 4px; }
+  .actions .btn { height: 32px; padding: 0 12px; font-size: 13px; }
+  .actions .icon-btn { width: 32px; padding: 0; }
+
+  .preview {
+    margin: 12px 0 2px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2);
+    max-height: 220px; overflow-y: auto; user-select: text;
+  }
+  .cue { display: grid; grid-template-columns: 76px 1fr; gap: 12px; padding: 5px 0; }
+  .cue + .cue { border-top: 1px solid var(--border); }
+  .cue time { color: var(--faint); font: 12px "Cascadia Mono", Consolas, monospace; padding-top: 2px; }
+  .cue p { margin: 0; white-space: pre-line; }
+  .preview-more { color: var(--faint); font-size: 12.5px; padding-top: 6px; }
+
+  .empty {
+    flex: 1; display: grid; place-items: center; text-align: center; color: var(--muted); padding: 28px;
+    border: 1.5px dashed var(--border-strong); border-radius: var(--radius);
+  }
+  .empty strong { display: block; color: var(--text); font-size: 15px; margin-bottom: 4px; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); background: var(--text); color: var(--bg);
+    padding: 9px 16px; border-radius: 10px; font-size: 13px; font-weight: 550; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 760px) {
+    .options { grid-template-columns: 1fr; }
+    .row { grid-template-columns: 96px 1fr; }
+    .thumb { width: 96px; }
+    .actions { grid-column: 1 / -1; justify-content: flex-end; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <svg class="logo" viewBox="0 0 100 100" aria-hidden="true">
+      <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#06b6d4"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs>
+      <rect width="100" height="100" rx="24" fill="url(#lg)"/>
+      <rect x="21.5" y="27.5" width="57" height="45" rx="7.5" fill="none" stroke="#fff" stroke-width="7"/>
+      <rect x="30" y="46" width="40" height="7" rx="3.5" fill="#fff"/>
+      <rect x="38" y="57.5" width="24" height="7" rx="3.5" fill="#fff"/>
+    </svg>
+    <div class="brand">
+      <h1>Subtitle Maker</h1>
+      <p>English subtitles from the speech in your videos, made on this PC</p>
+    </div>
+    <div class="engine" id="engine" data-state="idle"><i></i><span>Starting…</span></div>
+  </header>
+
+  <section class="card drop" id="drop">
+    <div class="drop-art">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="M7 12h10M9 16h6"/></svg>
+    </div>
+    <div class="drop-text">
+      <strong>Drop videos here</strong>
+      <span>MP4, MKV, MOV, WebM… Subtitles are saved next to each video.</span>
+    </div>
+    <button class="btn primary" id="choose">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+      Choose videos
+    </button>
+  </section>
+
+  <section class="options">
+    <div class="card option">
+      <div class="option-label">Speech is in</div>
+      <div class="segmented" id="lang" role="group" aria-label="Spoken language">
+        <button data-v="en">English</button>
+        <button data-v="other">Another language</button>
+      </div>
+      <span class="help" id="lang-help"></span>
+    </div>
+    <div class="card option">
+      <div class="option-label">Save as</div>
+      <div class="segmented" id="fmt" role="group" aria-label="Subtitle file type">
+        <button data-v="srt" title="For video players: VLC, TV, Windows">.srt</button>
+        <button data-v="vtt" title="For websites and the Reelm encoder">.vtt</button>
+        <button data-v="both">Both</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="list">
+    <div class="list-head">
+      <h2>Videos</h2>
+      <span class="count" id="count"></span>
+      <button class="link" id="clear" hidden>Clear finished</button>
+    </div>
+    <div class="items" id="items" hidden></div>
+    <div class="empty" id="empty">
+      <div><strong>Nothing here yet</strong>Add a video above. A 20-minute video takes about a minute on your graphics card.</div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<template id="item-tpl">
+  <article class="card item" data-state="queued">
+    <div class="row">
+      <div class="thumb">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m10 9 5 3-5 3z" fill="currentColor"/></svg>
+      </div>
+      <div class="body">
+        <div class="title"></div>
+        <div class="meta"></div>
+        <div class="bar"><span></span></div>
+        <div class="status"><span class="status-text">Waiting…</span></div>
+      </div>
+      <div class="actions"></div>
+    </div>
+    <div class="preview" hidden></div>
+  </article>
+</template>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const items = new Map();
+let api = null;
+const ACTIVE = ["queued", "loading", "working"];
+const FINISHED = ["done", "error", "cancelled"];
+
+const ICON = {
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z"/></svg>',
+  folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>',
+  text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+  x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+  retry: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15.5-6.2L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15.5 6.2L3 16"/><path d="M3 21v-5h5"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
+  alert: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.01"/></svg>',
+};
+
+function toast(text) {
+  const t = $("#toast");
+  t.textContent = text;
+  t.classList.add("show");
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => t.classList.remove("show"), 2400);
+}
+
+function select(groupSel, value) {
+  for (const b of document.querySelectorAll(groupSel + " button")) b.setAttribute("aria-pressed", String(b.dataset.v === value));
+}
+
+function setLangHelp(v) {
+  $("#lang-help").textContent = v === "other" ? "It will be translated into English subtitles" : "";
+}
+
+function refreshCounts() {
+  const all = [...items.values()];
+  $("#empty").hidden = all.length > 0;
+  $("#items").hidden = all.length === 0;
+  const active = all.filter((el) => ACTIVE.includes(el.dataset.state)).length;
+  const done = all.filter((el) => el.dataset.state === "done").length;
+  $("#count").textContent = all.length ? (active ? `${active} in progress · ${done} done` : `${done} done`) : "";
+  $("#clear").hidden = !all.some((el) => FINISHED.includes(el.dataset.state));
+}
+
+function setStatus(el, text, icon) {
+  const s = el.querySelector(".status");
+  s.innerHTML = (icon || "") + '<span class="status-text"></span>';
+  s.querySelector(".status-text").textContent = text;
+}
+
+function setActions(el, id) {
+  const box = el.querySelector(".actions");
+  const state = el.dataset.state;
+  box.innerHTML = "";
+  const add = (html, title, fn, cls = "btn") => {
+    const b = document.createElement("button");
+    b.className = cls;
+    b.innerHTML = html;
+    b.title = title;
+    b.onclick = fn;
+    box.append(b);
+  };
+  if (state === "done") {
+    add(ICON.text + "Preview", "Show the first subtitles", () => {
+      const p = el.querySelector(".preview");
+      p.hidden = !p.hidden;
+    });
+    add(ICON.play + "Play", "Play the video (players load the .srt automatically)", () => api.open_path(el.dataset.video));
+    add(ICON.folder, "Show the subtitle file in its folder", () => api.reveal(el.dataset.sub), "btn icon-btn");
+  } else if (state === "error" || state === "cancelled") {
+    add(ICON.retry + "Retry", "Try again", () => { remove(id); addPaths([el.dataset.video]); });
+    add(ICON.x, "Remove", () => remove(id), "btn icon-btn");
+  } else {
+    add(ICON.x, "Cancel", () => api.cancel(id), "btn icon-btn");
+  }
+}
+
+function remove(id) {
+  items.get(id)?.remove();
+  items.delete(id);
+  refreshCounts();
+}
+
+function fmtTime(s) {
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = Math.floor(s % 60);
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(sec).padStart(2, "0");
+}
+
+function renderPreview(el, cues, total) {
+  const p = el.querySelector(".preview");
+  p.innerHTML = "";
+  for (const c of cues) {
+    const row = document.createElement("div");
+    row.className = "cue";
+    row.innerHTML = "<time></time><p></p>";
+    row.querySelector("time").textContent = fmtTime(c.start);
+    row.querySelector("p").textContent = c.text;
+    p.append(row);
+  }
+  if (total > cues.length) {
+    const more = document.createElement("div");
+    more.className = "preview-more";
+    more.textContent = `…and ${total - cues.length} more. Open the file to see all of them.`;
+    p.append(more);
+  }
+}
+
+function addJob(job) {
+  const el = $("#item-tpl").content.firstElementChild.cloneNode(true);
+  el.dataset.video = job.path;
+  el.querySelector(".title").textContent = job.name;
+  el.querySelector(".meta").textContent = "‎" + job.folder + "‎";
+  el.querySelector(".meta").title = job.path;
+  $("#items").append(el);
+  el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  items.set(job.id, el);
+  setActions(el, job.id);
+  refreshCounts();
+}
+
+// Events from Python.
+window.onEvent = (ev) => {
+  if (ev.engine) {
+    const e = $("#engine");
+    e.dataset.state = ev.engine;
+    e.querySelector("span").textContent = ev.text;
+    return;
+  }
+  const el = items.get(ev.id);
+  if (!el) return;
+  const prev = el.dataset.state;
+  if (ev.state) el.dataset.state = ev.state;
+  if (ev.thumbnail && !el.querySelector(".thumb img")) {
+    const img = new Image();
+    img.src = ev.thumbnail;
+    el.querySelector(".thumb").prepend(img);
+  }
+  if (ev.duration && !el.querySelector(".duration")) {
+    const d = document.createElement("span");
+    d.className = "duration";
+    d.textContent = ev.duration;
+    el.querySelector(".thumb").append(d);
+  }
+  if (typeof ev.percent === "number") el.querySelector(".bar span").style.width = ev.percent.toFixed(1) + "%";
+  if (ev.sub) el.dataset.sub = ev.sub;
+  if (ev.cues) renderPreview(el, ev.cues, ev.cueCount);
+  const icon = ev.state === "done" ? ICON.check : ev.state === "error" ? ICON.alert : "";
+  if (ev.status) setStatus(el, ev.status, icon);
+  if (ev.state && ev.state !== prev) setActions(el, ev.id);
+  if (ev.state === "done") toast("Subtitles ready: " + el.querySelector(".title").textContent);
+  refreshCounts();
+};
+
+async function addPaths(paths) {
+  if (!paths || !paths.length) return;
+  const res = await api.add(paths);
+  for (const job of res.jobs) addJob(job);
+  if (res.skipped.length) toast(`Skipped ${res.skipped.length} file(s) that aren't videos`);
+}
+window.addDropped = addPaths; // Python calls this for files dropped on the window
+
+async function init() {
+  api = window.pywebview.api;
+  const s = await api.init();
+  select("#lang", s.language);
+  setLangHelp(s.language);
+  select("#fmt", s.format);
+  refreshCounts();
+
+  $("#choose").onclick = async () => addPaths(await api.choose_files());
+  for (const b of document.querySelectorAll("#lang button")) {
+    b.onclick = () => { select("#lang", b.dataset.v); setLangHelp(b.dataset.v); api.set_option("language", b.dataset.v); };
+  }
+  for (const b of document.querySelectorAll("#fmt button")) {
+    b.onclick = () => { select("#fmt", b.dataset.v); api.set_option("format", b.dataset.v); };
+  }
+  $("#clear").onclick = () => {
+    for (const [id, el] of items) if (FINISHED.includes(el.dataset.state)) remove(id);
+  };
+
+  // Drag-and-drop highlight; the files themselves are read on the Python side.
+  const drop = $("#drop");
+  let depth = 0;
+  window.addEventListener("dragenter", (e) => { e.preventDefault(); depth++; drop.classList.add("over"); });
+  window.addEventListener("dragleave", () => { if (--depth <= 0) { depth = 0; drop.classList.remove("over"); } });
+  window.addEventListener("dragover", (e) => e.preventDefault());
+  window.addEventListener("drop", (e) => { e.preventDefault(); depth = 0; drop.classList.remove("over"); });
+}
+
+window.addEventListener("pywebviewready", init);
+</script>
+</body>
+</html>

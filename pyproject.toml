@@ -1,0 +1,19 @@
+[project]
+name = "subtitle-maker"
+version = "0.1.0"
+description = "English subtitles from the speech in your videos, made on your PC (Whisper on an NVIDIA GPU)"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "av>=12,<16",
+    "darkdetect>=0.8.0",
+    "faster-whisper>=1.2.1",
+    "nvidia-cublas-cu12>=12.9.2.10",
+    "nvidia-cudnn-cu12>=9,<10",
+    "pillow>=13.0.0",
+    "pywebview>=6.2.1",
+]
+
+[tool.uv]
+required-environments = ["sys_platform == 'win32' and platform_machine == 'AMD64'"]
+

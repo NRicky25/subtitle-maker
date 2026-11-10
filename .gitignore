@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.py[oc]
+.venv/
+
+# your saved choices and the shortcut (they hold paths on this PC)
+settings.json
+*.lnk
+
+# subtitles made while testing
+*.srt
+*.vtt
